@@ -8,6 +8,7 @@ import android.content.BroadcastReceiver;
 import android.app.Activity;
 
 import com.facebook.react.modules.core.DeviceEventManagerModule;
+import com.facebook.react.bridge.ActivityEventListener;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
@@ -37,10 +38,11 @@ import android.util.Log;
  *
  * Provides JS accessible API, bridge Java and JavaScript.
  */
-public class NotificationModule extends ReactContextBaseJavaModule {
+public class NotificationModule extends ReactContextBaseJavaModule implements ActivityEventListener {
     final static String PREFERENCES_KEY = "ReactNativeSystemNotification";
     public Context mContext = null;
     public NotificationManager mNotificationManager = null;
+    private String TAG = "NotificationModule";
 
     @Override
     public String getName() {
@@ -245,7 +247,7 @@ public class NotificationModule extends ReactContextBaseJavaModule {
         if (activity == null) {
           return;
         }
-        
+
         Intent intent = activity.getIntent();
         Bundle extras = intent.getExtras();
 
@@ -257,7 +259,7 @@ public class NotificationModule extends ReactContextBaseJavaModule {
             }
         }
     }
-    
+
     @ReactMethod
     public void removeInitialSysNotification() {
         final Activity activity = getCurrentActivity();
@@ -265,7 +267,7 @@ public class NotificationModule extends ReactContextBaseJavaModule {
       if (activity == null) {
         return;
       }
-      
+
       activity.getIntent().removeExtra("initialSysNotificationId");
       activity.getIntent().removeExtra("initialSysNotificationAction");
       activity.getIntent().removeExtra("initialSysNotificationPayload");
@@ -287,16 +289,33 @@ public class NotificationModule extends ReactContextBaseJavaModule {
         getReactApplicationContext().registerReceiver(new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
-
-                Bundle extras = intent.getExtras();
-
-                WritableMap params = Arguments.createMap();
-                params.putInt("notificationID", extras.getInt(NotificationEventReceiver.NOTIFICATION_ID));
-                params.putString("action", extras.getString(NotificationEventReceiver.ACTION));
-                params.putString("payload", extras.getString(NotificationEventReceiver.PAYLOAD));
-
-                sendEvent("sysModuleNotificationClick", params);
+                Log.i(TAG, "listenNotificationEvent onReceive ");
+                notificationEventIntent(intent);
             }
         }, intentFilter);
+    }
+
+    private void notificationEventIntent(Intent intent) {
+        Bundle extras = intent.getExtras();
+
+        WritableMap params = Arguments.createMap();
+        params.putInt("notificationID", extras.getInt(NotificationEventReceiver.NOTIFICATION_ID));
+        params.putString("action", extras.getString(NotificationEventReceiver.ACTION));
+        params.putString("payload", extras.getString(NotificationEventReceiver.PAYLOAD));
+
+        sendEvent("sysModuleNotificationClick", params);
+    }
+
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        Log.i(TAG, "onActivityResult");
+    }
+
+    @Override
+    public void onNewIntent(Intent intent) {
+        Log.i(TAG, "onNewIntent " + intent.getAction());
+        if (intent.getAction() == "NotificationEvent") {
+          notificationEventIntent(intent);
+      }
     }
 }
